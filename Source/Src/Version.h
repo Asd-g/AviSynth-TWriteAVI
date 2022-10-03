@@ -1,6 +1,6 @@
 #define Version_Major       2
 #define Version_Minor       05      // Two Digits
-#define Version_Beta        00      // Two Digits (00 = Not beta)
+#define Version_Beta        01      // Two Digits (00 = Not beta)
 #define MyPlugName          "TWriteAVI\0"
 
 #define MyVersion_Copyright   "(c) 2005, tritical, squid_80 and mikeytown2\0"
