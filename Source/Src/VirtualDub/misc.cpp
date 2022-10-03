@@ -24,9 +24,9 @@
 #include <stdio.h>
 
 #include "misc.h"
-#include "cpuaccel.h"
+//#include "cpuaccel.h"
 
-#if defined(_M_IX86)
+#if 0
 
 	long __declspec(naked) MulDivTrunc(long a, long b, long c) {
 		__asm {
@@ -97,7 +97,7 @@ FOURCC toupperFOURCC(FOURCC fcc) {
 		| (toupper((unsigned char)(fcc    ))      );
 }
 
-#if defined(_M_IX86)
+#if 0
 
 	bool IsMMXState() {
 		char	buf[28];

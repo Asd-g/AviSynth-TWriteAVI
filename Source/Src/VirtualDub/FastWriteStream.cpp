@@ -19,11 +19,13 @@
 
 #include "VirtualDub.h"
 
+#include <mutex>
+
 #include <process.h>
 
 #include <windows.h>
 
-#include "cpuaccel.h"
+//#include "cpuaccel.h"
 
 #include "Error.h"
 
@@ -32,6 +34,8 @@
 
 /*extern*/ CRITICAL_SECTION g_diskcs;
 /*extern*/ bool g_disklockinited;
+
+static std::mutex mtx;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -219,10 +223,17 @@ void FastWriteStream::_Put(void *data, long len) {
 			lWritePointer -= lBufferSize;
 
 		// atomic add
-
-		__asm mov eax,this
+        
+        /*
+        __asm mov eax,this
 		__asm mov ebx,buffree
 		__asm lock add [eax]FastWriteStream.lDataPoint,ebx
+        */
+
+		{
+			std::lock_guard<std::mutex> lck(mtx);
+			lDataPoint += buffree;
+		}
 
 		// Signal the background thread if there might be enough to write.
 		//
@@ -451,12 +462,21 @@ bool FastWriteStream::BackgroundCheck() {
 	}
 
 	// Atomically update data point and signal write thread
-
-	__asm mov eax,this
+    
+    /*
+    __asm mov eax,this
 	__asm mov ebx,len
 	__asm lock sub [eax]FastWriteStream.lDataPoint,ebx
 
 	SetEvent(hEventOkWrite);
+    */
+    
+	{
+		std::lock_guard<std::mutex> lck(mtx);
+		lDataPoint -= len;
+
+		SetEvent(hEventOkWrite);
+	}	
 
 	return true;
 }
