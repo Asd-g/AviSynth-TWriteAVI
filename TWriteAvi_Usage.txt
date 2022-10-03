@@ -1,0 +1,156 @@
+TWriteAVI v2.05
+
+TWriteAVI v2.0, write to lossless file whatever can be played, to AVI (or WAV), and using the ForceProcessAVI/WAV functions, can write the
+files without playing them (and faster than eg VDub Video Analysis Pass [about 70% of VDub time]).
+
+DO NOT USE with MT, is already multi-threaded and will crash/mess up AVI or WAV file format.
+
+Function TWriteAvi(clip c,String filename,bool "overwrite"=false,bool "showall"=false,string "fourcc"="",int "dwChannelMask"=-1)
+
+ c, Video clip with optional audio. ALL valid colorspaces with exception of YV411.
+ Filename: NOT optional. Output filename.
+ Overwrite: Fails on existing unless overwrite==True.
+ Showall: Default false. Shows all codecs, not just ones supporting  your clip colorspace.
+ Fourcc: Default "". Characters UPPER case (usually) fourCC code for codec, eg "ULY0" for YV12 UT_Video rec601.
+ dwChannelMask: Default -1.
+     -1 = No Override, Use standard mapping as for v2.6 OPT_dwChannelMask.
+     0 = Non Located ie multiple MONAURAL channels.
+     Otherwise, need 1 bit set for each valid channel, see dwChannelMask flags at below link.
+        https://msdn.microsoft.com/en-us/library/windows/desktop/dd390971%28v=vs.85%29.aspx
+        Or in brief defaults here on Wiki:- http://avisynth.nl/index.php/Internal_functions#OPT_dwChannelMask
+        Or in full, https://msdn.microsoft.com/en-us/library/windows/hardware/dn653308%28v=vs.85%29.aspx
+  
+ Removed old Idxname arg (was not much use). 
+ Writes clip to filename returning original clip (after equivalent of Trim(0,0), audio trim/pad to same len as video). 
+ Audio 8, 16, 24 and 32 bit, also Float. Up to 8 channels (7.1), written as uncompressed PCM or IEEE 32 bit Float format.
+ Will auto close output FILE on last frame.
+ NOTE, for clips where audio is longer/shorter than video, TWriteAVI will do equivalent to Trim(0,0) to trim/pad audio to same length
+ as video (no effect if no audio).
+ 
+ v2.03, Modified behaviour a little. Now if frames not requested in strictly sequential order, will write all intervening frames between
+ last written frame and requested frame, if requested frame already written then requested frame will not be written a second time.
+ 
+#######
+ 
+ForceProcessAVI(clip c,bool "Debug"=True)
+ Force Process clip c, ie read from first to last frame, for TWriteAVI writes the AVI file (Video + Audio) without having to play clip.
+ Debug, default True, sends some progress info to DebugView (google).
+
+##############
+ 
+Function TWriteWAV(clip c,String filename,bool "overwrite"=false,int "dwChannelMask"=-1)
+ c, clip with audio.
+ Filename: NOT optional. Output filename.
+ Overwrite: Fails on existing unless overwrite==True.
+ dwChannelMask: Default -1.
+     -1 = No Override, Use standard mapping as for v2.6 OPT_dwChannelMask.
+     0 = Non Located ie multiple MONAURAL channels.
+     Otherwise, need 1 bit set for each valid channel.
+  
+ Writes audio from clip to filename returning original clip (return audio is NOT trimmed to same length as video). 
+ Audio 8, 16, 24 and 32 bit, also Float. Up to 8 channels (7.1), written as uncompressed PCM or IEEE 32 bit Float format.
+ Will auto close on last sample.
+ NOTE, entire audio is written to WAV, not just the length of video clip, [maybe use Trim(0,0) beforehand to trim/pad].
+#######
+
+ForceProcessWAV(clip c)
+ Force Process clip c audio only, ie read from first to last audio sample, for TWriteWAV writes the WAV file (Audio) without having to play clip.
+
+#######
+
+Default channel Mappings when dwChannelMask = Default -1:
+    0x00004, // 1   -- -- Cf
+    0x00003, // 2   Lf Rf
+    0x00007, // 3   Lf Rf Cf
+    0x00033, // 4   Lf Rf -- -- Lr Rr
+    0x00037, // 5   Lf Rf Cf -- Lr Rr
+    0x0003F, // 5.1 Lf Rf Cf Sw Lr Rr
+    0x0013F, // 6.1 Lf Rf Cf Sw Lr Rr -- -- Cr
+    0x0063F, // 7.1 Lf Rf Cf Sw Lr Rr -- -- -- Ls Rs 
+
+Speaker_Location:-
+    SPEAKER_FRONT_LEFT             0x1
+    SPEAKER_FRONT_RIGHT            0x2
+    SPEAKER_FRONT_CENTER           0x4
+    SPEAKER_LOW_FREQUENCY          0x8          # Shown above as Sw (Sub Woofer)
+    SPEAKER_BACK_LEFT              0x10
+    SPEAKER_BACK_RIGHT             0x20
+    SPEAKER_FRONT_LEFT_OF_CENTER   0x40
+    SPEAKER_FRONT_RIGHT_OF_CENTER  0x80
+    SPEAKER_BACK_CENTER            0x100
+    SPEAKER_SIDE_LEFT              0x200
+    SPEAKER_SIDE_RIGHT             0x400
+
+Not used by Default Mappings:
+    SPEAKER_TOP_CENTER             0x800
+    SPEAKER_TOP_FRONT_LEFT         0x1000
+    SPEAKER_TOP_FRONT_CENTER       0x2000
+    SPEAKER_TOP_FRONT_RIGHT        0x4000
+    SPEAKER_TOP_BACK_LEFT          0x8000
+    SPEAKER_TOP_BACK_CENTER        0x10000
+    SPEAKER_TOP_BACK_RIGHT         0x20000
+    
+#######
+
+#############################################################
+From Doom9 Forum thread:- http://forum.doom9.org/showthread.php?t=172837 
+
+The original TWriteAVI was intended to produce lossless intermediate file for HC-Enc, as HC-Enc later did this itself, there was no
+longer any call for TWriteAVI. [EDIT: From two posts below, seems it may have been initially written for use with VDub]
+
+TWriteAVI v2.0, can write lossless whatever can be played to AVI (or WAV), and using the ForceProcessAVI/WAV functions, can write the
+files without playing them.
+
+Two Pass:
+
+    WhateverSource(...)
+    A_Two_Pass_Function(Pass=1) # Create some kind of deshaker log or whatever.
+    ForceProcessAVI()           # Force Pass 1, creating log (A function From TWriteAVI plug)
+    A_Two_Pass_Function(Pass=2) # Use created log
+    return Last
+
+The ForceProcessAVI function forcibly processes both video and audio streams (ie reads each frame/sample in sequence),
+so that any eg log files produced by either video and/or audio processing filter will be forcibly written to disk.
+ForceProcessAVI/WAV are runtime functions not filters and so only return on completion.
+
+Simultaneous play and save AVI
+
+    WhateverSource(...)
+    FN="Output.AVI"
+    FOURCC="ULY0" # Ut_Video
+    TWriteAVI(FN,Overwrite=true,fourcc=FOURCC).
+    return Last
+
+
+Do some kind of processing and save AVI, Then play Lossless file.
+
+    WhateverSource(...)
+    FN="Output.AVI"
+    FOURCC="ULY0" # Ut_Video
+    Sharpen(0.3)                                 # Whatever
+    TWriteAVI(FN,Overwrite=true,fourcc=FOURCC)   # Write Sharp AVI whilst clip is played
+    ForceProcessAVI()                            # Force Write above TWriteAVI file without playing clip.
+    AVISource(FN)                                # Load Saved AVI
+    return Last                                  # Play Sharpened AVI lossless clip
+
+TWriteWAV/ForceProcessWAV, work in similar way to the AVI writing functions.
+
+See also Avisynth settings for WaveExtensible and Float output for compatible players (otherwise audio may be converted to 16bit on output
+from avisynth to a player).
+
+# For Float/WaveExtensible player eg MPC-HC (Else comment out below if Player not capable)
+    Global OPT_UseWaveExtensible = (AudioChannels>2||AudioBits>16)      # If more than 2 channels or > 16 bit, set true (Also Float, ie > 16 bits).
+    Global OPT_AllowFloatAudio   = (IsAudioFloat)                       # Must be set true to play in eg Media Player Classic - Home Cinema
+
+
+A demo included with TWriteAVI v2.0, splices 1000 clips together using temporary lossless intermediate files,
+this necessary due to some kind of system resources limitiation using Avisynth (limited to opening about 28 video
+files at one time).
+
+Q. What is TWriteAVI for ?
+A. Writes lossless AVI/WAV where required, specifically why you may want to do this is your problem, TWriteAVI is just the solution.
+
+Soundout plugin, allows for writing WAV files, BUT, returns immediately and so WAV will not be available for use until some time later,
+TWriteWAV together with ForceProcessWAV ensures WAV file is available on disk on return from ForceProcessWAV.
+
+ssS
